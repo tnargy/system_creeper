@@ -7,6 +7,7 @@
 ## Phase 1 — Workspace Scaffold
 
 ### TICKET-001 — Cargo Workspace Root
+**Status:** Complete
 **Depends on:** nothing
 **Files to create:**
 - `Cargo.toml` (workspace root)
@@ -21,6 +22,7 @@
 ---
 
 ### TICKET-002 — `shared` Library Crate
+**Status:** Not Started
 **Depends on:** TICKET-001
 **Files to create:**
 - `shared/Cargo.toml`
@@ -46,6 +48,7 @@ chrono = { version = "0.4", features = ["serde"] }
 ## Phase 2 — Collector
 
 ### TICKET-003 — Collector Crate Skeleton + Config
+**Status:** Not Started
 **Depends on:** TICKET-002
 **Files to create:**
 - `collector/Cargo.toml`
@@ -77,6 +80,7 @@ shared = { path = "../shared" }
 ---
 
 ### TICKET-004 — Collector Database Layer + Migrations
+**Status:** Not Started
 **Depends on:** TICKET-003
 **Files to create:**
 - `collector/src/db/mod.rs`
@@ -103,6 +107,7 @@ shared = { path = "../shared" }
 ---
 
 ### TICKET-005 — Collector: Metric Ingest Endpoint
+**Status:** Not Started
 **Depends on:** TICKET-004
 **Files to create / modify:**
 - `collector/src/api/mod.rs`
@@ -122,6 +127,7 @@ shared = { path = "../shared" }
 ---
 
 ### TICKET-006 — Collector: Read Endpoints (Agents, Snapshots, History, Thresholds)
+**Status:** Not Started
 **Depends on:** TICKET-005
 **Files to create:**
 - `collector/src/api/agents.rs`
@@ -163,6 +169,7 @@ shared = { path = "../shared" }
 ---
 
 ### TICKET-007 — Collector: WebSocket Push
+**Status:** Not Started
 **Depends on:** TICKET-005
 **Files to create:**
 - `collector/src/api/ws.rs`
@@ -178,6 +185,7 @@ shared = { path = "../shared" }
 ---
 
 ### TICKET-008 — Collector: Retention Task
+**Status:** Not Started
 **Depends on:** TICKET-004
 **Files to create / modify:**
 - `collector/src/retention.rs`
@@ -195,6 +203,7 @@ shared = { path = "../shared" }
 ## Phase 3 — Agent
 
 ### TICKET-009 — Agent Crate Skeleton + Config
+**Status:** Not Started
 **Depends on:** TICKET-002
 **Files to create:**
 - `agent/Cargo.toml`
@@ -226,6 +235,7 @@ shared = { path = "../shared" }
 ---
 
 ### TICKET-010 — Agent: Metric Collection
+**Status:** Not Started
 **Depends on:** TICKET-009
 **Files to create:**
 - `agent/src/metrics.rs`
@@ -245,6 +255,7 @@ shared = { path = "../shared" }
 ---
 
 ### TICKET-011 — Agent: HTTP Sender with Retry Buffer
+**Status:** Not Started
 **Depends on:** TICKET-009, TICKET-010
 **Files to create:**
 - `agent/src/sender.rs`
@@ -263,6 +274,7 @@ shared = { path = "../shared" }
 ## Phase 4 — Dashboard
 
 ### TICKET-012 — Dashboard Project Scaffold
+**Status:** Not Started
 **Depends on:** nothing (can be done in parallel with Phase 2/3)
 **Files to create:**
 - `dashboard/package.json`
@@ -346,6 +358,7 @@ interface MetricUpdateEvent {
 ---
 
 ### TICKET-013 — Dashboard: REST + WebSocket Client
+**Status:** Not Started
 **Depends on:** TICKET-012
 **Files to create:**
 - `dashboard/src/api/client.ts`
@@ -369,6 +382,7 @@ interface MetricUpdateEvent {
 ---
 
 ### TICKET-014 — Dashboard: `useWebSocket` Hook
+**Status:** Not Started
 **Depends on:** TICKET-013
 **Files to create:**
 - `dashboard/src/hooks/useWebSocket.ts`
@@ -383,6 +397,7 @@ interface MetricUpdateEvent {
 ---
 
 ### TICKET-015 — Dashboard: `useAgents` Hook
+**Status:** Not Started
 **Depends on:** TICKET-013, TICKET-014
 **Files to create:**
 - `dashboard/src/hooks/useAgents.ts`
@@ -396,6 +411,7 @@ interface MetricUpdateEvent {
 ---
 
 ### TICKET-016 — Dashboard: `StatusBadge` Component
+**Status:** Not Started
 **Depends on:** TICKET-012
 **Files to create:**
 - `dashboard/src/components/StatusBadge.tsx`
@@ -412,6 +428,7 @@ interface MetricUpdateEvent {
 ---
 
 ### TICKET-017 — Dashboard: `AgentCard` Component
+**Status:** Not Started
 **Depends on:** TICKET-016
 **Files to create:**
 - `dashboard/src/components/AgentCard.tsx`
@@ -431,6 +448,7 @@ interface MetricUpdateEvent {
 ---
 
 ### TICKET-018 — Dashboard: `DisconnectedBanner` Component
+**Status:** Not Started
 **Depends on:** TICKET-012
 **Files to create:**
 - `dashboard/src/components/DisconnectedBanner.tsx`
@@ -444,6 +462,7 @@ interface MetricUpdateEvent {
 ---
 
 ### TICKET-019 — Dashboard: `Header` Component
+**Status:** Not Started
 **Depends on:** TICKET-016
 **Files to create:**
 - `dashboard/src/components/Header.tsx`
@@ -457,6 +476,7 @@ interface MetricUpdateEvent {
 ---
 
 ### TICKET-020 — Dashboard: `AgentGrid` View
+**Status:** Not Started
 **Depends on:** TICKET-017, TICKET-018, TICKET-019, TICKET-015
 **Files to create:**
 - `dashboard/src/components/AgentGrid.tsx`
@@ -472,6 +492,7 @@ interface MetricUpdateEvent {
 ---
 
 ### TICKET-021 — Dashboard: `MetricChart` Component
+**Status:** Not Started
 **Depends on:** TICKET-012
 **Files to create:**
 - `dashboard/src/components/MetricChart.tsx`
@@ -497,6 +518,7 @@ interface MetricUpdateEvent {
 ---
 
 ### TICKET-022 — Dashboard: `ThresholdInput` Component
+**Status:** Not Started
 **Depends on:** TICKET-013
 **Files to create:**
 - `dashboard/src/components/ThresholdInput.tsx`
@@ -513,6 +535,7 @@ interface MetricUpdateEvent {
 ---
 
 ### TICKET-023 — Dashboard: `MetricPanel` Component
+**Status:** Not Started
 **Depends on:** TICKET-021, TICKET-022
 **Files to create:**
 - `dashboard/src/components/MetricPanel.tsx`
@@ -537,6 +560,7 @@ interface MetricUpdateEvent {
 ---
 
 ### TICKET-024 — Dashboard: `AgentDetail` View
+**Status:** Not Started
 **Depends on:** TICKET-023, TICKET-013
 **Files to create:**
 - `dashboard/src/components/AgentDetail.tsx`
@@ -555,6 +579,7 @@ interface MetricUpdateEvent {
 ---
 
 ### TICKET-025 — Dashboard: `App.tsx` — Top-Level State + View Routing
+**Status:** Not Started
 **Depends on:** TICKET-020, TICKET-024
 **Files to modify:**
 - `dashboard/src/App.tsx`
@@ -573,6 +598,7 @@ interface MetricUpdateEvent {
 ## Phase 5 — Integration & Hardening
 
 ### TICKET-026 — End-to-End Smoke Test (Manual)
+**Status:** Not Started
 **Depends on:** all previous tickets
 **This is a manual verification checklist, not a code ticket.**
 
@@ -590,6 +616,7 @@ interface MetricUpdateEvent {
 ---
 
 ### TICKET-027 — Collector: Static File Serving for Dashboard
+**Status:** Not Started
 **Depends on:** TICKET-025
 **Files to modify:**
 - `collector/src/main.rs`
