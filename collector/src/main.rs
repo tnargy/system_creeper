@@ -1,4 +1,5 @@
 mod config;
+mod db;
 
 use std::{path::PathBuf, process};
 
@@ -40,5 +41,16 @@ async fn main() {
     tracing_subscriber::fmt().with_env_filter(filter).init();
 
     tracing::info!(listen_addr = %cfg.listen_addr, "collector starting");
+
+    let _pool = match db::init_pool(&cfg.database_path).await {
+        Ok(p) => {
+            tracing::info!(path = %cfg.database_path, "database ready");
+            p
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "failed to initialise database");
+            process::exit(1);
+        }
+    };
 }
 
