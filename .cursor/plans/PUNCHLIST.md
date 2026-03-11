@@ -203,7 +203,7 @@ shared = { path = "../shared" }
 ## Phase 3 — Agent
 
 ### TICKET-009 — Agent Crate Skeleton + Config
-**Status:** Not Started
+**Status:** Complete
 **Depends on:** TICKET-002
 **Files to create:**
 - `agent/Cargo.toml`
