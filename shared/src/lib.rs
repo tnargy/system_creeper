@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// `agent_id` uniquely identifies the reporting machine; it is configured in the agent's
 /// TOML file and falls back to the machine hostname when absent.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MetricPayload {
     pub agent_id: String,
     pub timestamp: DateTime<Utc>,
@@ -16,14 +16,14 @@ pub struct MetricPayload {
     pub uptime_seconds: u64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemoryInfo {
     pub used_bytes: u64,
     pub total_bytes: u64,
     pub percent: f64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiskInfo {
     pub mount_point: String,
     pub used_bytes: u64,
@@ -31,7 +31,7 @@ pub struct DiskInfo {
     pub percent: f64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkInfo {
     pub bytes_in: u64,
     pub bytes_out: u64,

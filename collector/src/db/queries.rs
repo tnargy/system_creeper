@@ -364,6 +364,20 @@ pub async fn delete_threshold(pool: &SqlitePool, id: i64) -> Result<bool, sqlx::
     Ok(rows_affected > 0)
 }
 
+/// Return the `duplicate_flag` for the given agent, or `false` if the agent
+/// is not found.  Used when building the WebSocket broadcast message.
+pub async fn get_agent_duplicate_flag(
+    pool: &SqlitePool,
+    agent_id: &str,
+) -> Result<bool, sqlx::Error> {
+    let row: Option<(i64,)> =
+        sqlx::query_as("SELECT duplicate_flag FROM agents WHERE agent_id = ?")
+            .bind(agent_id)
+            .fetch_optional(pool)
+            .await?;
+    Ok(row.map(|(flag,)| flag != 0).unwrap_or(false))
+}
+
 // ---------------------------------------------------------------------------
 // Retention
 // ---------------------------------------------------------------------------

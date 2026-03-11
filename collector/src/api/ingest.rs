@@ -27,8 +27,17 @@ pub async fn ingest_metrics(
         }
     };
 
-    match persist(&state, payload).await {
-        Ok(()) => StatusCode::OK,
+    match persist(&state, &payload).await {
+        Ok(()) => {
+            // Fire-and-forget: build and push the WS event without blocking
+            // the HTTP response back to the agent.
+            tokio::spawn(super::ws::broadcast_metric_update(
+                state.pool.clone(),
+                state.tx.clone(),
+                payload,
+            ));
+            StatusCode::OK
+        }
         Err(e) => {
             tracing::error!(error = %e, "database error during metric ingest");
             StatusCode::SERVICE_UNAVAILABLE
@@ -38,7 +47,7 @@ pub async fn ingest_metrics(
 
 /// Persists the full [`MetricPayload`] (agent upsert + metric row + disk readings)
 /// inside a single SQLite transaction.
-async fn persist(state: &AppState, payload: MetricPayload) -> Result<(), sqlx::Error> {
+async fn persist(state: &AppState, payload: &MetricPayload) -> Result<(), sqlx::Error> {
     let mut tx = state.pool.begin().await?;
 
     // Upsert the agent — sets first_seen_at only on first appearance.

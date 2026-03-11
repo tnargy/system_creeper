@@ -3,12 +3,17 @@ mod config;
 mod db;
 
 use std::{net::SocketAddr, path::PathBuf, process};
+use tokio::sync::broadcast;
 
 /// Shared application state threaded through all route handlers.
 #[derive(Clone)]
 pub struct AppState {
     pub pool: db::Db,
     pub offline_threshold_secs: u64,
+    /// Sender half of the broadcast channel used to push metric update events
+    /// to all connected WebSocket clients.  The receiver half is subscribed to
+    /// inside each WebSocket handler task.
+    pub tx: broadcast::Sender<String>,
 }
 
 #[tokio::main]
@@ -61,7 +66,11 @@ async fn main() {
         }
     };
 
-    let state = AppState { pool, offline_threshold_secs: cfg.offline_threshold_secs };
+    // Capacity of 256: if a slow client falls this far behind it is acceptable
+    // to drop messages rather than build up unbounded memory.
+    let (tx, _initial_rx) = broadcast::channel::<String>(256);
+
+    let state = AppState { pool, offline_threshold_secs: cfg.offline_threshold_secs, tx };
     let app = api::router(state);
 
     let addr: SocketAddr = match cfg.listen_addr.parse() {
