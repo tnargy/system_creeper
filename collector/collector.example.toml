@@ -1,0 +1,5 @@
+listen_addr            = "0.0.0.0:8080"
+database_path          = "./data/metrics.db"
+offline_threshold_secs = 120   # 2 minutes
+retention_days         = 30
+log_level              = "info"
