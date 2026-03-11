@@ -185,7 +185,7 @@ shared = { path = "../shared" }
 ---
 
 ### TICKET-008 — Collector: Retention Task
-**Status:** Not Started
+**Status:** Complete
 **Depends on:** TICKET-004
 **Files to create / modify:**
 - `collector/src/retention.rs`

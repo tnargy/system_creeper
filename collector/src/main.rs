@@ -1,6 +1,7 @@
 mod api;
 mod config;
 mod db;
+mod retention;
 
 use std::{net::SocketAddr, path::PathBuf, process};
 use tokio::sync::broadcast;
@@ -69,6 +70,10 @@ async fn main() {
     // Capacity of 256: if a slow client falls this far behind it is acceptable
     // to drop messages rather than build up unbounded memory.
     let (tx, _initial_rx) = broadcast::channel::<String>(256);
+
+    // Spawn the retention background task.  It runs once immediately at
+    // startup, then every 24 hours, deleting metrics older than retention_days.
+    retention::spawn(pool.clone(), cfg.retention_days);
 
     let state = AppState { pool, offline_threshold_secs: cfg.offline_threshold_secs, tx };
     let app = api::router(state);
