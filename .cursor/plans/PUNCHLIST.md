@@ -235,7 +235,7 @@ shared = { path = "../shared" }
 ---
 
 ### TICKET-010 — Agent: Metric Collection
-**Status:** Not Started
+**Status:** Complete
 **Depends on:** TICKET-009
 **Files to create:**
 - `agent/src/metrics.rs`
@@ -255,7 +255,7 @@ shared = { path = "../shared" }
 ---
 
 ### TICKET-011 — Agent: HTTP Sender with Retry Buffer
-**Status:** Not Started
+**Status:** Complete
 **Depends on:** TICKET-009, TICKET-010
 **Files to create:**
 - `agent/src/sender.rs`
@@ -274,7 +274,7 @@ shared = { path = "../shared" }
 ## Phase 4 — Dashboard
 
 ### TICKET-012 — Dashboard Project Scaffold
-**Status:** Not Started
+**Status:** Complete
 **Depends on:** nothing (can be done in parallel with Phase 2/3)
 **Files to create:**
 - `dashboard/package.json`
