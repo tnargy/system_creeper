@@ -42,6 +42,7 @@ async fn main() {
                 offline_threshold_secs: 120,
                 retention_days: 30,
                 log_level: "info".to_string(),
+                dashboard_dir: "./dashboard/dist".to_string(),
             }
         }
     };
@@ -76,7 +77,7 @@ async fn main() {
     retention::spawn(pool.clone(), cfg.retention_days);
 
     let state = AppState { pool, offline_threshold_secs: cfg.offline_threshold_secs, tx };
-    let app = api::router(state);
+    let app = api::router(state, &cfg.dashboard_dir);
 
     let addr: SocketAddr = match cfg.listen_addr.parse() {
         Ok(a) => a,

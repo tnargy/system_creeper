@@ -13,6 +13,10 @@ fn default_log_level() -> String {
     "info".to_string()
 }
 
+fn default_dashboard_dir() -> String {
+    "./dashboard/dist".to_string()
+}
+
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub listen_addr: String,
@@ -23,6 +27,8 @@ pub struct Config {
     pub retention_days: u32,
     #[serde(default = "default_log_level")]
     pub log_level: String,
+    #[serde(default = "default_dashboard_dir")]
+    pub dashboard_dir: String,
 }
 
 /// Load a [`Config`] from the TOML file at `path`.
