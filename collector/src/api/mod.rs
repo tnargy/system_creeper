@@ -7,7 +7,7 @@ use axum::{
     routing::{get, post, put},
     Router,
 };
-use tower_http::cors::CorsLayer;
+use tower_http::{cors::CorsLayer, services::{ServeDir, ServeFile}};
 
 use crate::AppState;
 
@@ -16,7 +16,15 @@ use crate::AppState;
 /// All routes are mounted under `/api/v1` and a permissive CORS layer
 /// (allows any origin / method / header) is applied to every response,
 /// as required for development use.
-pub fn router(state: AppState) -> Router {
+///
+/// The dashboard SPA is served from `dashboard_dir` at `/`.  Any path not
+/// matched by an API route falls back to `index.html` so that client-side
+/// routing works correctly.
+pub fn router(state: AppState, dashboard_dir: impl AsRef<std::path::Path>) -> Router {
+    let dashboard_dir = dashboard_dir.as_ref();
+    let fallback = ServeFile::new(dashboard_dir.join("index.html"));
+    let serve_dir = ServeDir::new(dashboard_dir).not_found_service(fallback);
+
     Router::new()
         // Ingest
         .route("/api/v1/metrics", post(ingest::ingest_metrics))
@@ -31,4 +39,7 @@ pub fn router(state: AppState) -> Router {
         .route("/ws", get(ws::ws_handler))
         .with_state(state)
         .layer(CorsLayer::permissive())
+        // Static files — any request not matched above falls through to the
+        // dashboard SPA; unknown paths within the SPA are served index.html.
+        .fallback_service(serve_dir)
 }
