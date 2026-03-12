@@ -1,7 +1,11 @@
 mod config;
-pub mod metrics;
+mod metrics;
+mod sender;
 
-use std::{path::PathBuf, process};
+use std::{path::PathBuf, process, time::Duration};
+
+use metrics::NetworkBaseline;
+use sender::Sender;
 
 #[tokio::main]
 async fn main() {
@@ -35,5 +39,39 @@ async fn main() {
         buffer_duration_secs = cfg.buffer_duration_secs,
         "agent starting",
     );
+
+    let mut sender = Sender::new(
+        cfg.collector_url.clone(),
+        cfg.buffer_duration_secs,
+        cfg.interval_secs,
+    );
+
+    // Network baseline carried across ticks to compute byte deltas.
+    let mut net_baseline: Option<NetworkBaseline> = None;
+
+    let interval = Duration::from_secs(cfg.interval_secs);
+    let mut ticker = tokio::time::interval(interval);
+    // Don't try to "catch up" missed ticks (e.g. after a slow collection).
+    ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+
+    loop {
+        ticker.tick().await;
+
+        // Collect metrics; treat any unexpected error as a logged warning, not
+        // a crash.  In practice `collect_metrics` is infallible, but wrapping
+        // future-proofs the loop.
+        let payload =
+            match tokio::time::timeout(interval, metrics::collect_metrics(&agent_id, &mut net_baseline)).await {
+                Ok(p) => p,
+                Err(_) => {
+                    tracing::warn!("metric collection timed out — skipping tick");
+                    continue;
+                }
+            };
+
+        // Send (with buffered retry).  Errors are logged inside `send_with_retry`;
+        // we never propagate them here so the loop keeps running.
+        sender.send_with_retry(payload).await;
+    }
 }
 
