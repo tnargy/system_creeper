@@ -1,4 +1,5 @@
 mod config;
+pub mod metrics;
 
 use std::{path::PathBuf, process};
 
