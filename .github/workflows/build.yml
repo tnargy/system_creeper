@@ -40,7 +40,8 @@ jobs:
         run: cargo build --release --bin agent --bin collector
 
       - name: Build dashboard (Rust WASM)
-        run: trunk build dashboard/index.html --release --dist dashboard/dist
+        working-directory: dashboard
+        run: trunk build --release
 
       - name: Stage artifacts (Linux)
         if: runner.os == 'Linux'
