@@ -17,7 +17,22 @@ pub struct AgentSummary {
     pub first_seen_at: DateTime<Utc>,
     pub last_seen_at: DateTime<Utc>,
     pub duplicate_flag: bool,
+    pub tags: Vec<String>,
     pub latest_metric: Option<MetricSnapshot>,
+}
+
+/// Serialize a `Vec<String>` of tags into a comma-separated `String` for DB storage.
+pub fn tags_to_str(tags: &[String]) -> String {
+    tags.join(",")
+}
+
+/// Deserialize a comma-separated `String` from DB storage into a `Vec<String>` of tags.
+/// Empty entries and surrounding whitespace are removed.
+pub fn tags_from_str(s: &str) -> Vec<String> {
+    s.split(',')
+        .map(|t| t.trim().to_string())
+        .filter(|t| !t.is_empty())
+        .collect()
 }
 
 /// A raw row from the `metrics` table (no disk readings).

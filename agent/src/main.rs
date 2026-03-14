@@ -32,6 +32,7 @@ async fn main() {
     tracing_subscriber::fmt().with_env_filter(filter).init();
 
     let agent_id = cfg.effective_agent_id();
+    let tags = cfg.parsed_tags();
     tracing::info!(
         agent_id = %agent_id,
         collector_url = %cfg.collector_url,
@@ -63,7 +64,7 @@ async fn main() {
         // future-proofs the loop.
         let payload = match tokio::time::timeout(
             interval,
-            metrics::collect_metrics(&agent_id, &mut net_baseline),
+            metrics::collect_metrics(&agent_id, &mut net_baseline, &tags),
         )
         .await
         {

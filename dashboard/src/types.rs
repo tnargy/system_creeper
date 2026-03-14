@@ -57,6 +57,7 @@ pub struct AgentSummary {
     pub status: AgentStatus,
     pub last_seen_at: String,
     pub duplicate_flag: bool,
+    pub tags: Vec<String>,
     pub snapshot: Option<MetricSnapshot>,
 }
 
@@ -81,6 +82,8 @@ pub struct MetricUpdateEvent {
     pub network: NetworkInfo,
     pub uptime_seconds: u64,
     pub duplicate_flag: bool,
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -90,6 +93,8 @@ pub(crate) struct AgentApiResponse {
     pub last_seen_at: String,
     #[serde(default)]
     pub duplicate_flag: bool,
+    #[serde(default)]
+    pub tags: Vec<String>,
     #[serde(default, alias = "latest_metric")]
     pub snapshot: Option<SnapshotWire>,
 }

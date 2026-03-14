@@ -19,6 +19,7 @@ pub type NetworkBaseline = HashMap<String, (u64, u64)>;
 pub async fn collect_metrics(
     agent_id: &str,
     net_baseline: &mut Option<NetworkBaseline>,
+    tags: &[String],
 ) -> MetricPayload {
     let timestamp = Utc::now();
 
@@ -89,19 +90,19 @@ pub async fn collect_metrics(
             bytes_out: 0,
         },
         Some(prev) => {
-            let (in_delta, out_delta) = current_totals.iter().fold(
-                (0u64, 0u64),
-                |acc, (iface, &(cur_in, cur_out))| {
-                    if let Some(&(prev_in, prev_out)) = prev.get(iface) {
-                        (
-                            acc.0 + cur_in.saturating_sub(prev_in),
-                            acc.1 + cur_out.saturating_sub(prev_out),
-                        )
-                    } else {
-                        acc
-                    }
-                },
-            );
+            let (in_delta, out_delta) =
+                current_totals
+                    .iter()
+                    .fold((0u64, 0u64), |acc, (iface, &(cur_in, cur_out))| {
+                        if let Some(&(prev_in, prev_out)) = prev.get(iface) {
+                            (
+                                acc.0 + cur_in.saturating_sub(prev_in),
+                                acc.1 + cur_out.saturating_sub(prev_out),
+                            )
+                        } else {
+                            acc
+                        }
+                    });
             NetworkInfo {
                 bytes_in: in_delta,
                 bytes_out: out_delta,
@@ -120,5 +121,6 @@ pub async fn collect_metrics(
         disks,
         network,
         uptime_seconds: System::uptime(),
+        tags: tags.to_vec(),
     }
 }

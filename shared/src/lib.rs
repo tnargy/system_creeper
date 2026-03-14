@@ -16,6 +16,8 @@ pub struct MetricPayload {
     pub disks: Vec<DiskInfo>,
     pub network: NetworkInfo,
     pub uptime_seconds: u64,
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

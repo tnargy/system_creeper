@@ -10,6 +10,6 @@ serde_json = "1.0"
 gloo-net = "0.6"
 gloo-timers = { version = "0.3", features = ["futures"] }
 wasm-bindgen-futures = "0.4"
-web-sys = { version = "0.3", features = ["Window", "Location"] }
+web-sys = { version = "0.3", features = ["Window", "Location", "Storage", "HtmlSelectElement"] }
 futures-util = "0.3"
 js-sys = "0.3"

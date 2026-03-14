@@ -11,7 +11,9 @@ pub fn ws_url() -> String {
     let window = web_sys::window().expect("window unavailable in browser");
     let location = window.location();
     let protocol = location.protocol().unwrap_or_else(|_| "http:".to_string());
-    let host = location.host().unwrap_or_else(|_| "localhost:8080".to_string());
+    let host = location
+        .host()
+        .unwrap_or_else(|_| "localhost:8080".to_string());
     let ws_proto = if protocol == "https:" { "wss" } else { "ws" };
     format!("{ws_proto}://{host}/ws")
 }
@@ -38,6 +40,7 @@ pub async fn fetch_agents() -> Result<Vec<AgentSummary>, String> {
             status: a.status,
             last_seen_at: a.last_seen_at,
             duplicate_flag: a.duplicate_flag,
+            tags: a.tags,
             snapshot: a.snapshot.map(|s| s.into_snapshot()),
         })
         .collect())
@@ -152,7 +155,10 @@ pub async fn update_threshold(
         .map_err(|e| format!("PUT /thresholds/{id} failed: {e}"))?;
 
     if !response.ok() {
-        return Err(format!("PUT /thresholds/{id} failed: {}", response.status()));
+        return Err(format!(
+            "PUT /thresholds/{id} failed: {}",
+            response.status()
+        ));
     }
 
     response
@@ -168,7 +174,10 @@ pub async fn delete_threshold(id: i64) -> Result<(), String> {
         .map_err(|e| format!("DELETE /thresholds/{id} failed: {e}"))?;
 
     if !response.ok() {
-        return Err(format!("DELETE /thresholds/{id} failed: {}", response.status()));
+        return Err(format!(
+            "DELETE /thresholds/{id} failed: {}",
+            response.status()
+        ));
     }
 
     Ok(())

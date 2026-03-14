@@ -4,3 +4,4 @@ interval_secs        = 30
 buffer_duration_secs = 300         # 5 minutes
 log_level            = "info"
 hmac_secret          = ""          # set to a non-empty string to enable HMAC-SHA256 request signing
+tags                 = ""          # comma-separated, e.g. "production,web,eu-west"

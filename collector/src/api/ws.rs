@@ -1,8 +1,8 @@
+use axum::extract::ws::{Message, WebSocket};
 use axum::{
     extract::{State, WebSocketUpgrade},
     response::Response,
 };
-use axum::extract::ws::{Message, WebSocket};
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use tokio::sync::broadcast;
@@ -27,6 +27,7 @@ struct MetricUpdateEvent {
     network: NetworkMsg,
     uptime_seconds: u64,
     duplicate_flag: bool,
+    tags: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -159,6 +160,7 @@ pub(crate) async fn broadcast_metric_update(
         },
         uptime_seconds: payload.uptime_seconds,
         duplicate_flag,
+        tags: payload.tags,
     };
 
     match serde_json::to_string(&event) {
@@ -199,7 +201,10 @@ async fn handle_socket(mut socket: WebSocket, mut rx: broadcast::Receiver<String
             Err(broadcast::error::RecvError::Lagged(n)) => {
                 // The client fell behind; messages were dropped by the channel.
                 // Log and continue — do not disconnect.
-                tracing::warn!(skipped = n, "WebSocket client lagged; messages were dropped");
+                tracing::warn!(
+                    skipped = n,
+                    "WebSocket client lagged; messages were dropped"
+                );
             }
             Err(broadcast::error::RecvError::Closed) => break,
         }

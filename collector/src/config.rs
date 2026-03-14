@@ -1,6 +1,28 @@
 use serde::Deserialize;
 use std::{fs, path::Path};
 
+/// The subset of [`Config`] fields that can be changed at runtime without a restart.
+///
+/// Wrapped in an `Arc<ArcSwap<ReloadableConfig>>` inside `AppState` so that a
+/// SIGHUP / Ctrl+Break signal handler can swap in a fresh value while all
+/// in-flight handlers keep reading the old one safely.
+#[derive(Debug, Clone)]
+pub struct ReloadableConfig {
+    pub offline_threshold_secs: u64,
+    pub retention_days: u32,
+    pub log_level: String,
+}
+
+impl From<&Config> for ReloadableConfig {
+    fn from(c: &Config) -> Self {
+        ReloadableConfig {
+            offline_threshold_secs: c.offline_threshold_secs,
+            retention_days: c.retention_days,
+            log_level: c.log_level.clone(),
+        }
+    }
+}
+
 fn default_offline_threshold_secs() -> u64 {
     120
 }

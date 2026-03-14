@@ -47,6 +47,48 @@ const FILTER_OPTIONS: [AgentFilter; 5] = [
     AgentFilter::Offline,
 ];
 
+#[derive(Clone, Copy, PartialEq)]
+enum SortOrder {
+    NameAsc,
+    NameDesc,
+    StatusSeverity,
+    LastSeenDesc,
+}
+
+impl SortOrder {
+    fn label(self) -> &'static str {
+        match self {
+            Self::NameAsc => "Name A→Z",
+            Self::NameDesc => "Name Z→A",
+            Self::StatusSeverity => "Status",
+            Self::LastSeenDesc => "Last Seen",
+        }
+    }
+
+    fn storage_key() -> &'static str {
+        "rustnexus_sort"
+    }
+
+    fn to_storage_str(self) -> &'static str {
+        match self {
+            Self::NameAsc => "name_asc",
+            Self::NameDesc => "name_desc",
+            Self::StatusSeverity => "status_severity",
+            Self::LastSeenDesc => "last_seen_desc",
+        }
+    }
+
+    fn from_storage_str(s: &str) -> Self {
+        match s {
+            "name_asc" => Self::NameAsc,
+            "name_desc" => Self::NameDesc,
+            "status_severity" => Self::StatusSeverity,
+            "last_seen_desc" => Self::LastSeenDesc,
+            _ => Self::NameAsc,
+        }
+    }
+}
+
 #[derive(Clone, PartialEq)]
 enum ThresholdAction {
     Upsert {
@@ -231,6 +273,19 @@ fn app() -> Html {
     let threshold_feedback = use_state(|| Option::<String>::None);
     let grid_filter = use_state(|| AgentFilter::All);
     let grid_search = use_state(String::new);
+    let sort_order = use_state(|| {
+        web_sys::window()
+            .and_then(|w| w.local_storage().ok().flatten())
+            .and_then(|s| s.get_item(SortOrder::storage_key()).ok().flatten())
+            .map(|v| SortOrder::from_storage_str(&v))
+            .unwrap_or(SortOrder::NameAsc)
+    });
+    let tag_filter = use_state(|| {
+        web_sys::window()
+            .and_then(|w| w.local_storage().ok().flatten())
+            .and_then(|s| s.get_item("rustnexus_tag_filter").ok().flatten())
+            .unwrap_or_default() // empty string = "All"
+    });
 
     {
         let agents = agents.clone();
@@ -281,7 +336,8 @@ fn app() -> Html {
                             while let Some(message) = socket.next().await {
                                 match message {
                                     Ok(Message::Text(text)) => {
-                                        let parsed = serde_json::from_str::<MetricUpdateEvent>(&text);
+                                        let parsed =
+                                            serde_json::from_str::<MetricUpdateEvent>(&text);
                                         if let Ok(event) = parsed {
                                             if event.event == "metric_update" {
                                                 let mut next = agents_ref.borrow().clone();
@@ -317,45 +373,48 @@ fn app() -> Html {
         let history = history.clone();
         let loading_history = loading_history.clone();
 
-        use_effect_with(((*selected_agent_id).clone(), (*history_range).clone()), move |deps| {
-            let (selected, range) = deps.clone();
-            let alive = Rc::new(Cell::new(true));
-            let alive_task = alive.clone();
-            let history = history.clone();
-            let loading_history = loading_history.clone();
+        use_effect_with(
+            ((*selected_agent_id).clone(), (*history_range).clone()),
+            move |deps| {
+                let (selected, range) = deps.clone();
+                let alive = Rc::new(Cell::new(true));
+                let alive_task = alive.clone();
+                let history = history.clone();
+                let loading_history = loading_history.clone();
 
-            spawn_local(async move {
-                if selected.is_none() {
-                    history.set(vec![]);
-                    loading_history.set(false);
-                    return;
-                }
-
-                if let Some(agent_id) = selected {
-                    loop {
-                        if !alive_task.get() {
-                            return;
-                        }
-
-                        loading_history.set(true);
-                        match api::fetch_history(&agent_id, &range).await {
-                            Ok(items) => history.set(items),
-                            Err(_) => history.set(vec![]),
-                        }
+                spawn_local(async move {
+                    if selected.is_none() {
+                        history.set(vec![]);
                         loading_history.set(false);
+                        return;
+                    }
 
-                        for _ in 0..30 {
+                    if let Some(agent_id) = selected {
+                        loop {
                             if !alive_task.get() {
                                 return;
                             }
-                            TimeoutFuture::new(1_000).await;
+
+                            loading_history.set(true);
+                            match api::fetch_history(&agent_id, &range).await {
+                                Ok(items) => history.set(items),
+                                Err(_) => history.set(vec![]),
+                            }
+                            loading_history.set(false);
+
+                            for _ in 0..30 {
+                                if !alive_task.get() {
+                                    return;
+                                }
+                                TimeoutFuture::new(1_000).await;
+                            }
                         }
                     }
-                }
-            });
+                });
 
-            move || alive.set(false)
-        });
+                move || alive.set(false)
+            },
+        );
     }
 
     let on_back = {
@@ -408,8 +467,9 @@ fn app() -> Html {
                         match api::fetch_thresholds().await {
                             Ok(next) => thresholds.set(next),
                             Err(e) => {
-                                threshold_feedback
-                                    .set(Some(format!("Action succeeded, but refresh failed: {e}")));
+                                threshold_feedback.set(Some(format!(
+                                    "Action succeeded, but refresh failed: {e}"
+                                )));
                                 return;
                             }
                         }
@@ -470,6 +530,8 @@ fn app() -> Html {
                         selected_agent_id,
                         grid_filter,
                         grid_search,
+                        sort_order,
+                        tag_filter,
                     )
                 }
             }
@@ -483,6 +545,8 @@ fn render_agent_grid(
     selected_agent_id: UseStateHandle<Option<String>>,
     grid_filter: UseStateHandle<AgentFilter>,
     grid_search: UseStateHandle<String>,
+    sort_order: UseStateHandle<SortOrder>,
+    tag_filter: UseStateHandle<String>,
 ) -> Html {
     let counts = count_by_status(&agents);
     let search = grid_search.to_lowercase();
@@ -503,6 +567,28 @@ fn render_agent_grid(
         })
         .collect();
 
+    // Tag filter — applied after status+search filter
+    let mut filtered: Vec<AgentSummary> = {
+        let tag = tag_filter.as_str().to_string();
+        if tag.is_empty() {
+            filtered
+        } else {
+            filtered
+                .into_iter()
+                .filter(|a| a.tags.contains(&tag))
+                .collect()
+        }
+    };
+
+    match *sort_order {
+        SortOrder::NameAsc => filtered.sort_by(|a, b| a.agent_id.cmp(&b.agent_id)),
+        SortOrder::NameDesc => filtered.sort_by(|a, b| b.agent_id.cmp(&a.agent_id)),
+        SortOrder::StatusSeverity => {
+            filtered.sort_by(|a, b| status_sort_key(&a.status).cmp(&status_sort_key(&b.status)))
+        }
+        SortOrder::LastSeenDesc => filtered.sort_by(|a, b| b.last_seen_at.cmp(&a.last_seen_at)),
+    }
+
     if agents.is_empty() {
         return html! { <div class="panel">{"No agents have reported yet."}</div> };
     }
@@ -516,6 +602,51 @@ fn render_agent_grid(
             grid_search.set(value);
         })
     };
+
+    // Collect distinct tags across ALL agents (not just the filtered set)
+    let mut all_tags: Vec<String> = agents
+        .iter()
+        .flat_map(|a| a.tags.iter().cloned())
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+    all_tags.sort();
+
+    let on_tag_change = {
+        let tag_filter = tag_filter.clone();
+        Callback::from(move |ev: Event| {
+            let value = ev
+                .target_unchecked_into::<web_sys::HtmlSelectElement>()
+                .value();
+            web_sys::window()
+                .and_then(|w| w.local_storage().ok().flatten())
+                .and_then(|s| s.set_item("rustnexus_tag_filter", &value).ok());
+            tag_filter.set(value);
+        })
+    };
+
+    let on_sort_change = {
+        let sort_order = sort_order.clone();
+        Callback::from(move |ev: Event| {
+            let target = ev.target_unchecked_into::<web_sys::HtmlSelectElement>();
+            let value = target.value();
+            let new_order = SortOrder::from_storage_str(&value);
+            web_sys::window()
+                .and_then(|w| w.local_storage().ok().flatten())
+                .and_then(|s| {
+                    s.set_item(SortOrder::storage_key(), new_order.to_storage_str())
+                        .ok()
+                });
+            sort_order.set(new_order);
+        })
+    };
+
+    const SORT_OPTIONS: [SortOrder; 4] = [
+        SortOrder::NameAsc,
+        SortOrder::NameDesc,
+        SortOrder::StatusSeverity,
+        SortOrder::LastSeenDesc,
+    ];
 
     html! {
         <section>
@@ -541,6 +672,19 @@ fn render_agent_grid(
                         }
                     }) }
                 </div>
+                <select
+                    class="sort-select"
+                    onchange={on_sort_change}
+                >
+                    { for SORT_OPTIONS.iter().copied().map(|opt| {
+                        let selected = *sort_order == opt;
+                        html! {
+                            <option value={opt.to_storage_str()} selected={selected}>
+                                {opt.label()}
+                            </option>
+                        }
+                    }) }
+                </select>
                 <input
                     class="search-input"
                     type="text"
@@ -548,6 +692,14 @@ fn render_agent_grid(
                     value={(*grid_search).clone()}
                     oninput={on_search}
                 />
+                if !all_tags.is_empty() {
+                    <select class="sort-select" onchange={on_tag_change}>
+                        <option value="" selected={tag_filter.is_empty()}>{"All tags"}</option>
+                        { for all_tags.iter().map(|tag| html! {
+                            <option value={tag.clone()} selected={*tag_filter == *tag}>{tag.clone()}</option>
+                        }) }
+                    </select>
+                }
             </div>
 
             {
@@ -557,39 +709,53 @@ fn render_agent_grid(
                     html! {
                         <div class="grid">
                             { for filtered.into_iter().map(|agent| {
-                let select = selected_agent_id.clone();
-                let id = agent.agent_id.clone();
-                let clickable = connected && agent.status.as_str() != "offline";
-                let onclick = Callback::from(move |_| {
-                    if clickable {
-                        select.set(Some(id.clone()));
-                    }
-                });
-                html! {
-                    <button class={classes!("card", format!("card-{}", agent.status.as_str()), (!clickable).then_some("card-disabled"))} {onclick}>
-                        <strong>{agent.agent_id.clone()}</strong>
-                        <div class="muted">{format!("Last seen: {}", format_last_seen(&agent.last_seen_at))}</div>
-                        {
-                            if !connected || agent.status.as_str() == "offline" {
-                                html! {
-                                    <div class="muted">{"Data unavailable while disconnected/offline."}</div>
-                                }
-                            } else if let Some(snapshot) = agent.snapshot {
-                                html! {
-                                    <div class="kv">
-                                        <span>{"CPU"}</span><span>{format!("{:.1}%", snapshot.cpu_percent)}</span>
-                                        <span>{"Memory"}</span><span>{format!("{:.1}%", snapshot.memory.percent)}</span>
-                                        <span>{"Network In"}</span><span>{format_bytes(snapshot.network.bytes_in)}</span>
-                                        <span>{"Network Out"}</span><span>{format_bytes(snapshot.network.bytes_out)}</span>
-                                    </div>
-                                }
-                            } else {
-                                html! { <div class="muted">{"No snapshot yet"}</div> }
-                            }
+                    let select = selected_agent_id.clone();
+                    let id = agent.agent_id.clone();
+                    let clickable = connected;
+                    let onclick = Callback::from(move |_| {
+                        if clickable {
+                            select.set(Some(id.clone()));
                         }
-                    </button>
-                }
-            }) }
+                    });
+                    html! {
+                        <button class={classes!("card", format!("card-{}", agent.status.as_str()), (!clickable).then_some("card-disabled"))} {onclick}>
+                            {
+                                if agent.duplicate_flag {
+                                    html! {
+                                        <div class="agent-name agent-name-duplicate">
+                                            <span class="duplicate-icon">{"⚠ "}</span>
+                                            <strong>{agent.agent_id.clone()}</strong>
+                                        </div>
+                                    }
+                                } else {
+                                    html! { <strong>{agent.agent_id.clone()}</strong> }
+                                }
+                            }
+                            <div class="muted">{format!("Last seen: {}", format_last_seen(&agent.last_seen_at))}</div>
+                            if !agent.tags.is_empty() {
+                                <div class="agent-tags">{agent.tags.join(", ")}</div>
+                            }
+                            {
+                                if !connected || agent.status.as_str() == "offline" {
+                                    html! {
+                                        <div class="muted">{"Data unavailable while disconnected/offline."}</div>
+                                    }
+                                } else if let Some(snapshot) = agent.snapshot {
+                                    html! {
+                                        <div class="kv">
+                                            <span>{"CPU"}</span><span>{format!("{:.1}%", snapshot.cpu_percent)}</span>
+                                            <span>{"Memory"}</span><span>{format!("{:.1}%", snapshot.memory.percent)}</span>
+                                            <span>{"Network In"}</span><span>{format_bytes(snapshot.network.bytes_in)}</span>
+                                            <span>{"Network Out"}</span><span>{format_bytes(snapshot.network.bytes_out)}</span>
+                                        </div>
+                                    }
+                                } else {
+                                    html! { <div class="muted">{"No snapshot yet"}</div> }
+                                }
+                            }
+                        </button>
+                    }
+                }) }
                         </div>
                     }
                 }
@@ -618,9 +784,28 @@ fn render_agent_detail(
         <section class="panel">
             <div class="actions">
                 <button class="button" onclick={on_back}>{"Back"}</button>
-                <span class="status-pill">{format!("Agent: {}", agent.agent_id)}</span>
+                {
+                    if agent.duplicate_flag {
+                        html! {
+                            <span class="status-pill agent-name-duplicate">
+                                {"⚠ "}
+                                {format!("Agent: {}", agent.agent_id)}
+                            </span>
+                        }
+                    } else {
+                        html! { <span class="status-pill">{format!("Agent: {}", agent.agent_id)}</span> }
+                    }
+                }
                 <span class="status-pill">{format!("Status: {}", agent.status.as_str())}</span>
             </div>
+
+            {
+                if agent.duplicate_flag {
+                    html! { <div class="duplicate-warning">{"⚠ Duplicate agent ID detected — multiple machines are reporting under this identifier."}</div> }
+                } else {
+                    html! {}
+                }
+            }
 
             {
                 if !connected || agent.status.as_str() == "offline" {
@@ -632,6 +817,12 @@ fn render_agent_detail(
                             <span>{"Memory"}</span><span>{format!("{:.1}%", snapshot.memory.percent)}</span>
                             <span>{"Uptime"}</span><span>{format_seconds(snapshot.uptime_seconds)}</span>
                             <span>{"Duplicate"}</span><span>{if agent.duplicate_flag {"yes"} else {"no"}}</span>
+                            if !agent.tags.is_empty() {
+                                <>
+                                    <span>{"Tags"}</span>
+                                    <span class="agent-tags">{agent.tags.join(", ")}</span>
+                                </>
+                            }
                         </div>
                     }
                 } else {
@@ -709,7 +900,10 @@ fn render_history_charts(
     let mem_points: Vec<f64> = history.iter().map(|h| h.memory.percent).collect();
     let net_in_points: Vec<f64> = history.iter().map(|h| h.network.bytes_in as f64).collect();
     let net_out_points: Vec<f64> = history.iter().map(|h| h.network.bytes_out as f64).collect();
-    let labels: Vec<String> = history.iter().map(|h| trim_timestamp(&h.timestamp)).collect();
+    let labels: Vec<String> = history
+        .iter()
+        .map(|h| trim_timestamp(&h.timestamp))
+        .collect();
 
     html! {
         <div class="chart-grid" style="margin-top: 8px;">
@@ -814,7 +1008,7 @@ fn line_chart_card(props: &LineChartCardProps) -> Html {
                 .unwrap_or_else(|| "-".to_string());
 
             html! {
-                <div class="chart-tooltip" style={format!("left: {left_pct:.2}%; top: {top_pct:.2}%;")}> 
+                <div class="chart-tooltip" style={format!("left: {left_pct:.2}%; top: {top_pct:.2}%;")}>
                     <div class="chart-tooltip-time">{label}</div>
                     <div>{format_chart_value(value, &props.unit)}</div>
                     {
@@ -937,11 +1131,7 @@ fn threshold_y(value: f64, y_max: f64, y_bottom: f64, y_span: f64) -> f64 {
 }
 
 fn min_f64(values: &[f64]) -> f64 {
-    values
-        .iter()
-        .copied()
-        .reduce(f64::min)
-        .unwrap_or_default()
+    values.iter().copied().reduce(f64::min).unwrap_or_default()
 }
 
 fn max_f64(values: &[f64]) -> f64 {
@@ -966,6 +1156,7 @@ fn upsert_agent_from_ws(items: &mut Vec<AgentSummary>, event: MetricUpdateEvent)
         status: event.status,
         last_seen_at: event.timestamp.clone(),
         duplicate_flag: event.duplicate_flag,
+        tags: event.tags,
         snapshot: Some(MetricSnapshot {
             timestamp: event.timestamp,
             cpu_percent: event.cpu_percent,
@@ -1088,6 +1279,15 @@ fn format_bytes(bytes: u64) -> String {
         return format!("{:.0} KB", value / KB);
     }
     format!("{bytes} B")
+}
+
+fn status_sort_key(status: &types::AgentStatus) -> u8 {
+    match status {
+        types::AgentStatus::Critical => 0,
+        types::AgentStatus::Warning => 1,
+        types::AgentStatus::Offline => 2,
+        types::AgentStatus::Online => 3,
+    }
 }
 
 fn main() {

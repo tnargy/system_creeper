@@ -6,11 +6,11 @@ use axum::{
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
+use super::errors::ProblemDetail;
 use crate::{
     db::{self, AgentSummary, MetricSnapshot, Threshold},
     AppState,
 };
-use super::errors::ProblemDetail;
 
 // ---------------------------------------------------------------------------
 // Status computation
@@ -103,10 +103,11 @@ pub async fn list_agents(
         )
     })?;
 
+    let offline_threshold_secs = state.reloadable.load().offline_threshold_secs;
     let responses = summaries
         .into_iter()
         .map(|summary| {
-            let status = compute_status(&summary, &thresholds, state.offline_threshold_secs);
+            let status = compute_status(&summary, &thresholds, offline_threshold_secs);
             AgentResponse { summary, status }
         })
         .collect();

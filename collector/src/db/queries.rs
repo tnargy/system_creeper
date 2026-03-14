@@ -14,6 +14,7 @@ struct AgentMetricRow {
     first_seen_at: DateTime<Utc>,
     last_seen_at: DateTime<Utc>,
     duplicate_flag: i64,
+    tags: String,
     metric_id: Option<i64>,
     metric_timestamp: Option<DateTime<Utc>>,
     cpu_percent: Option<f64>,
@@ -34,6 +35,7 @@ pub async fn get_agents_summary(pool: &SqlitePool) -> Result<Vec<AgentSummary>, 
             a.first_seen_at,
             a.last_seen_at,
             a.duplicate_flag,
+            a.tags,
             m.id            AS metric_id,
             m.timestamp     AS metric_timestamp,
             m.cpu_percent,
@@ -90,6 +92,7 @@ pub async fn get_agents_summary(pool: &SqlitePool) -> Result<Vec<AgentSummary>, 
             first_seen_at: row.first_seen_at,
             last_seen_at: row.last_seen_at,
             duplicate_flag: row.duplicate_flag != 0,
+            tags: crate::db::tags_from_str(&row.tags),
             latest_metric,
         });
     }
@@ -203,9 +206,11 @@ pub async fn get_history(
 
 /// Return all threshold rows.
 pub async fn get_thresholds(pool: &SqlitePool) -> Result<Vec<Threshold>, sqlx::Error> {
-    sqlx::query_as::<_, Threshold>("SELECT id, agent_id, metric_name, warning_value, critical_value FROM thresholds")
-        .fetch_all(pool)
-        .await
+    sqlx::query_as::<_, Threshold>(
+        "SELECT id, agent_id, metric_name, warning_value, critical_value FROM thresholds",
+    )
+    .fetch_all(pool)
+    .await
 }
 
 /// Insert a new threshold row and return the created row.
@@ -246,15 +251,14 @@ pub async fn update_threshold(
     warning_value: f64,
     critical_value: f64,
 ) -> Result<Option<Threshold>, sqlx::Error> {
-    let rows_affected = sqlx::query(
-        "UPDATE thresholds SET warning_value = ?, critical_value = ? WHERE id = ?",
-    )
-    .bind(warning_value)
-    .bind(critical_value)
-    .bind(id)
-    .execute(pool)
-    .await?
-    .rows_affected();
+    let rows_affected =
+        sqlx::query("UPDATE thresholds SET warning_value = ?, critical_value = ? WHERE id = ?")
+            .bind(warning_value)
+            .bind(critical_value)
+            .bind(id)
+            .execute(pool)
+            .await?
+            .rows_affected();
 
     if rows_affected == 0 {
         return Ok(None);

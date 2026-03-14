@@ -1,3 +1,4 @@
+use crate::db::tags_to_str;
 use axum::{
     body::Bytes,
     extract::State,
@@ -99,14 +100,17 @@ async fn persist(state: &AppState, payload: &MetricPayload) -> Result<(), sqlx::
     // Upsert the agent — sets first_seen_at only on first appearance.
     sqlx::query(
         r#"
-        INSERT INTO agents (agent_id, first_seen_at, last_seen_at, duplicate_flag)
-        VALUES (?, ?, ?, 0)
-        ON CONFLICT(agent_id) DO UPDATE SET last_seen_at = excluded.last_seen_at
+        INSERT INTO agents (agent_id, first_seen_at, last_seen_at, duplicate_flag, tags)
+        VALUES (?, ?, ?, 0, ?)
+        ON CONFLICT(agent_id) DO UPDATE SET
+            last_seen_at = excluded.last_seen_at,
+            tags = excluded.tags
         "#,
     )
     .bind(&payload.agent_id)
     .bind(payload.timestamp)
     .bind(payload.timestamp)
+    .bind(tags_to_str(&payload.tags))
     .execute(&mut *tx)
     .await?;
 

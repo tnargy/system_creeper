@@ -43,6 +43,9 @@ pub struct Config {
     /// secret.
     #[serde(default)]
     pub hmac_secret: String,
+    /// Comma-separated tags for this agent (e.g. "production,web").
+    #[serde(default)]
+    pub tags: String,
 }
 
 impl Config {
@@ -57,6 +60,16 @@ impl Config {
         } else {
             id.to_string()
         }
+    }
+
+    /// Parse the comma-separated `tags` string into a cleaned `Vec<String>`.
+    /// Empty entries and leading/trailing whitespace are removed.
+    pub fn parsed_tags(&self) -> Vec<String> {
+        self.tags
+            .split(',')
+            .map(|t| t.trim().to_string())
+            .filter(|t| !t.is_empty())
+            .collect()
     }
 }
 
@@ -134,6 +147,7 @@ log_level            = "debug"
             buffer_duration_secs: 300,
             log_level: "info".to_string(),
             hmac_secret: String::new(),
+            tags: String::new(),
         };
         assert_eq!(cfg.effective_agent_id(), "my-server");
     }
@@ -147,6 +161,7 @@ log_level            = "debug"
             buffer_duration_secs: 300,
             log_level: "info".to_string(),
             hmac_secret: String::new(),
+            tags: String::new(),
         };
         let id = cfg.effective_agent_id();
         // Hostname should be non-empty (or at least the known fallback).
