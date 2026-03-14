@@ -5,11 +5,11 @@ use axum::{
 };
 use serde::Deserialize;
 
+use super::errors::ProblemDetail;
 use crate::{
     db::{self, Threshold},
     AppState,
 };
-use super::errors::ProblemDetail;
 
 const VALID_METRIC_NAMES: &[&str] = &["cpu", "memory", "disk"];
 

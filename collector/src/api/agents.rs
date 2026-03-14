@@ -177,7 +177,7 @@ pub async fn get_history(
     // Subsample to at most 300 data points by taking every Nth row.
     const MAX_POINTS: usize = 300;
     if snapshots.len() > MAX_POINTS {
-        let step = (snapshots.len() + MAX_POINTS - 1) / MAX_POINTS;
+        let step = snapshots.len().div_ceil(MAX_POINTS);
         snapshots = snapshots
             .into_iter()
             .enumerate()

@@ -49,8 +49,7 @@ impl ProblemDetail {
 
 impl IntoResponse for ProblemDetail {
     fn into_response(self) -> Response {
-        let status =
-            StatusCode::from_u16(self.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+        let status = StatusCode::from_u16(self.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
         let mut resp = (status, Json(&self)).into_response();
         // RFC 7807 §3: error responses MUST use "application/problem+json".
         resp.headers_mut().insert(

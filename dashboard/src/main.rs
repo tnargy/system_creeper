@@ -118,6 +118,21 @@ struct ThresholdEditorProps {
     on_action: Callback<ThresholdAction>,
 }
 
+#[derive(Clone)]
+struct AgentDetailHistoryProps {
+    history: Vec<MetricSnapshot>,
+    loading_history: bool,
+    selected_range: String,
+    history_range: UseStateHandle<String>,
+}
+
+#[derive(Clone)]
+struct AgentDetailThresholdProps {
+    thresholds: Vec<Threshold>,
+    on_threshold_action: Callback<ThresholdAction>,
+    threshold_feedback: Option<String>,
+}
+
 #[derive(Properties, PartialEq, Clone)]
 struct LineChartCardProps {
     title: String,
@@ -514,14 +529,18 @@ fn app() -> Html {
                     render_agent_detail(
                         agent,
                         *ws_status == WsStatus::Connected,
-                        (*thresholds).clone(),
-                        (*history).clone(),
-                        *loading_history,
-                        (*history_range).clone(),
+                        AgentDetailHistoryProps {
+                            history: (*history).clone(),
+                            loading_history: *loading_history,
+                            selected_range: (*history_range).clone(),
+                            history_range,
+                        },
+                        AgentDetailThresholdProps {
+                            thresholds: (*thresholds).clone(),
+                            on_threshold_action: on_threshold_action.clone(),
+                            threshold_feedback: (*threshold_feedback).clone(),
+                        },
                         on_back,
-                        history_range,
-                        on_threshold_action.clone(),
-                        (*threshold_feedback).clone(),
                     )
                 } else {
                     render_agent_grid(
@@ -552,8 +571,7 @@ fn render_agent_grid(
     let search = grid_search.to_lowercase();
     let filtered: Vec<AgentSummary> = agents
         .iter()
-        .cloned()
-        .filter(|a| {
+        .filter(|&a| {
             let status_ok = match *grid_filter {
                 AgentFilter::All => true,
                 AgentFilter::Online => a.status.as_str() == "online",
@@ -565,6 +583,7 @@ fn render_agent_grid(
             let search_ok = search.is_empty() || a.agent_id.to_lowercase().contains(&search);
             status_ok && search_ok
         })
+        .cloned()
         .collect();
 
     // Tag filter — applied after status+search filter
@@ -767,18 +786,13 @@ fn render_agent_grid(
 fn render_agent_detail(
     agent: AgentSummary,
     connected: bool,
-    thresholds: Vec<Threshold>,
-    history: Vec<MetricSnapshot>,
-    loading_history: bool,
-    selected_range: String,
+    history_props: AgentDetailHistoryProps,
+    threshold_props: AgentDetailThresholdProps,
     on_back: Callback<MouseEvent>,
-    history_range: UseStateHandle<String>,
-    on_threshold_action: Callback<ThresholdAction>,
-    threshold_feedback: Option<String>,
 ) -> Html {
-    let cpu_threshold = resolve_threshold(&thresholds, &agent.agent_id, "cpu");
-    let mem_threshold = resolve_threshold(&thresholds, &agent.agent_id, "memory");
-    let disk_threshold = resolve_threshold(&thresholds, &agent.agent_id, "disk");
+    let cpu_threshold = resolve_threshold(&threshold_props.thresholds, &agent.agent_id, "cpu");
+    let mem_threshold = resolve_threshold(&threshold_props.thresholds, &agent.agent_id, "memory");
+    let disk_threshold = resolve_threshold(&threshold_props.thresholds, &agent.agent_id, "disk");
 
     html! {
         <section class="panel">
@@ -832,8 +846,8 @@ fn render_agent_detail(
 
             <div class="actions" style="margin-top: 14px;">
                 { for ["1h", "6h", "24h", "7d"].iter().map(|range| {
-                    let history_range = history_range.clone();
-                    let is_active = selected_range == *range;
+                    let history_range = history_props.history_range.clone();
+                    let is_active = history_props.selected_range == *range;
                     let range_value = (*range).to_string();
                     let onclick = Callback::from(move |_| history_range.set(range_value.clone()));
                     html! {
@@ -849,23 +863,23 @@ fn render_agent_detail(
                         agent_id={agent.agent_id.clone()}
                         metric_name={"cpu".to_string()}
                         threshold={cpu_threshold.clone()}
-                        on_action={on_threshold_action.clone()}
+                        on_action={threshold_props.on_threshold_action.clone()}
                     />
                     <ThresholdEditor
                         agent_id={agent.agent_id.clone()}
                         metric_name={"memory".to_string()}
                         threshold={mem_threshold.clone()}
-                        on_action={on_threshold_action.clone()}
+                        on_action={threshold_props.on_threshold_action.clone()}
                     />
                     <ThresholdEditor
                         agent_id={agent.agent_id.clone()}
                         metric_name={"disk".to_string()}
                         threshold={disk_threshold}
-                        on_action={on_threshold_action}
+                        on_action={threshold_props.on_threshold_action}
                     />
                 </div>
                 {
-                    if let Some(msg) = threshold_feedback {
+                    if let Some(msg) = &threshold_props.threshold_feedback {
                         html! { <div class="muted" style="margin-top: 6px;">{msg}</div> }
                     } else {
                         html! {}
@@ -878,12 +892,12 @@ fn render_agent_detail(
                 {
                     if !connected || agent.status.as_str() == "offline" {
                         html!{ <div class="muted">{"Reconnect to resume history updates."}</div> }
-                    } else if loading_history {
+                    } else if history_props.loading_history {
                         html!{ <div class="muted">{"Loading history..."}</div> }
-                    } else if history.is_empty() {
+                    } else if history_props.history.is_empty() {
                         html!{ <div class="muted">{"No history in selected range."}</div> }
                     } else {
-                        render_history_charts(&history, &cpu_threshold, &mem_threshold)
+                        render_history_charts(&history_props.history, &cpu_threshold, &mem_threshold)
                     }
                 }
             </div>
