@@ -9,6 +9,95 @@ use std::{cell::Cell, rc::Rc};
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
+// ---------------------------------------------------------------------------
+// Theme
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Copy, PartialEq)]
+enum ThemeMode {
+    /// Follow the OS/browser `prefers-color-scheme` media query.
+    Auto,
+    Light,
+    Dark,
+}
+
+impl ThemeMode {
+    fn storage_key() -> &'static str {
+        "rustnexus_theme"
+    }
+
+    fn to_storage_str(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::Light => "light",
+            Self::Dark => "dark",
+        }
+    }
+
+    fn from_storage_str(s: &str) -> Self {
+        match s {
+            "light" => Self::Light,
+            "dark" => Self::Dark,
+            _ => Self::Auto,
+        }
+    }
+
+    /// The label shown on the toggle button.
+    fn label(self) -> &'static str {
+        match self {
+            Self::Auto => "🖥 Auto",
+            Self::Light => "☀ Light",
+            Self::Dark => "☾ Dark",
+        }
+    }
+
+    /// Cycle Auto → Light → Dark → Auto.
+    fn next(self) -> Self {
+        match self {
+            Self::Auto => Self::Light,
+            Self::Light => Self::Dark,
+            Self::Dark => Self::Auto,
+        }
+    }
+
+    /// The class name to set on `<html>`, or `None` for Auto (remove the class
+    /// and let the media query take over).
+    fn html_class(self) -> Option<&'static str> {
+        match self {
+            Self::Auto => None,
+            Self::Light => Some("light"),
+            Self::Dark => Some("dark"),
+        }
+    }
+}
+
+/// Apply the theme class to the `<html>` element and persist to localStorage.
+fn apply_theme(mode: ThemeMode) {
+    let window = match web_sys::window() {
+        Some(w) => w,
+        None => return,
+    };
+    let document = match window.document() {
+        Some(d) => d,
+        None => return,
+    };
+    let html = match document.document_element() {
+        Some(el) => el,
+        None => return,
+    };
+
+    // Remove both classes first, then add the appropriate one.
+    let _ = html.class_list().remove_2("light", "dark");
+    if let Some(cls) = mode.html_class() {
+        let _ = html.class_list().add_1(cls);
+    }
+
+    // Persist to localStorage.
+    if let Ok(Some(storage)) = window.local_storage() {
+        let _ = storage.set_item(ThemeMode::storage_key(), mode.to_storage_str());
+    }
+}
+
 use types::{AgentSummary, MetricSnapshot, MetricUpdateEvent, Threshold};
 
 #[derive(Clone, Copy, PartialEq)]
@@ -288,6 +377,28 @@ fn app() -> Html {
     let threshold_feedback = use_state(|| Option::<String>::None);
     let grid_filter = use_state(|| AgentFilter::All);
     let grid_search = use_state(String::new);
+
+    // ── Theme ────────────────────────────────────────────────────────────────
+    let theme = use_state(|| {
+        let stored = web_sys::window()
+            .and_then(|w| w.local_storage().ok().flatten())
+            .and_then(|s| s.get_item(ThemeMode::storage_key()).ok().flatten())
+            .map(|v| ThemeMode::from_storage_str(&v))
+            .unwrap_or(ThemeMode::Auto);
+        // Apply immediately on first render so there's no flash.
+        apply_theme(stored);
+        stored
+    });
+
+    let on_theme_toggle = {
+        let theme = theme.clone();
+        Callback::from(move |_: MouseEvent| {
+            let next = theme.next();
+            apply_theme(next);
+            theme.set(next);
+        })
+    };
+
     let sort_order = use_state(|| {
         web_sys::window()
             .and_then(|w| w.local_storage().ok().flatten())
@@ -509,7 +620,10 @@ fn app() -> Html {
                     <h1 class="brand">{"RustNexus Control Room"}</h1>
                     <div class="muted">{"Rust-native dashboard preview (Yew + WASM)"}</div>
                 </div>
-                <div class={classes!("status-pill", ws_status.class_name())}>{ws_status.label()}</div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <button class="button theme-toggle" onclick={on_theme_toggle}>{(*theme).label()}</button>
+                    <div class={classes!("status-pill", ws_status.class_name())}>{ws_status.label()}</div>
+                </div>
             </header>
 
             {

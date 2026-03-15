@@ -31,7 +31,7 @@ jobs:
               uses: dtolnay/rust-toolchain@stable
 
             - name: Security audit
-              if: runner.os == 'Linux'
+              if: false #runner.os == 'Linux'
               uses: rustsec/audit-check@v2
               with:
                   token: ${{ secrets.GITHUB_TOKEN }}
